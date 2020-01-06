@@ -2,7 +2,7 @@ import ast
 import sys
 import types
 
-def check(node_or_string, allowed_modules=[], allowed_functions=[],
+def check(node_or_string, allowed_modules={}, allowed_functions=[],
         verbose=True):
     def exception_handler(
             exception_type, exception, traceback, debug_hook=sys.excepthook):
@@ -110,11 +110,11 @@ def check(node_or_string, allowed_modules=[], allowed_functions=[],
                     return
                 raise ValueError(f'{node.func.id} is not allowed.')
             elif hasattr(node.func, 'attr'):
-                funcs = allowed_modules[aliases[node.func.value.id]]
-                if funcs == '':
-                    return
-                elif node.func.value.id in aliases.keys():
-                    if node.func.attr in func:
+                if node.func.value.id in aliases.keys():
+                    funcs = allowed_modules[aliases[node.func.value.id]]
+                    if funcs == '':
+                        return
+                    if node.func.attr in funcs:
                         return
                 else:
                     if node.func.attr in allowed_functions:

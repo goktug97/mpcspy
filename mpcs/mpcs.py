@@ -75,9 +75,16 @@ def check(node_or_string, allowed_modules={}, allowed_functions=[],
                 _convert(base)
             return
         elif isinstance(node, ast.AnnAssign):
+            if node.target.id in aliases.keys():
+                raise ValueError(
+                        'Module to module assign is not allowed')
             _convert(node.value)
             return
         elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if target.id in aliases.keys():
+                    raise ValueError(
+                            'Module to module assign is not allowed')
             _convert(node.value)
             return
         elif isinstance(node, ast.Name):

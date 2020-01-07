@@ -1,6 +1,9 @@
 import ast
 import sys
 import types
+import importlib
+import site
+
 
 def check(node_or_string, allowed_modules={}, allowed_functions=[],
         verbose=True):
@@ -16,19 +19,31 @@ def check(node_or_string, allowed_modules={}, allowed_functions=[],
         node_or_string = ast.parse(node_or_string, mode='exec')
     if isinstance(node_or_string, ast.Module):
         node_or_string = node_or_string.body
-    def _convert(node):
+    def check_package(name):
+        lib_path = importlib.find_loader(name).path
+        local_site = site.getusersitepackages()
+        local_site = '/'.join(local_site.split('/')[:-1])
+        global_sites = site.getsitepackages()
+        for global_site in global_sites:
+            global_site = '/'.join(global_site.split('/')[:-1])
+            if global_site in lib_path:
+                return True
+        if local_site in lib_path:
+            return True
+        return False
+    def _check(node):
         if hasattr(node, 'values'):
             for value in node.values:
-                _convert(value)
+                _check(value)
         if hasattr(node, 'elts'):
             for value in node.elts:
-                _convert(value)
+                _check(value)
         if hasattr(node, 'body'):
             for exp in node.body:
-                _convert(exp)
+                _check(exp)
 
         if isinstance(node, ast.Expr):
-            _convert(node.value)
+            _check(node.value)
             return
         elif isinstance(node, ast.Constant):
             return
@@ -47,47 +62,45 @@ def check(node_or_string, allowed_modules={}, allowed_functions=[],
         elif isinstance(node, ast.NameConstant):
             return
         elif isinstance(node, ast.BinOp):
-            _convert(node.right)
-            _convert(node.left)
+            _check(node.right)
+            _check(node.left)
             return
         elif isinstance(node, ast.For):
-            _convert(node.iter)
+            _check(node.iter)
             return
         elif isinstance(node, ast.While):
-            _convert(node.test)
+            _check(node.test)
             return
         elif isinstance(node, ast.Compare):
             for exp in node.comparators:
-                _convert(exp)
-            _convert(node.left)
+                _check(exp)
+            _check(node.left)
             return
         elif isinstance(node, ast.FunctionDef):
             for arg in node.args.defaults:
-                _convert(arg)
+                _check(arg)
             return
         elif isinstance(node, ast.Return):
-            _convert(node.value)
+            _check(node.value)
             return
         elif isinstance(node, ast.Pass):
             return
         elif isinstance(node, ast.ClassDef):
             for base in node.bases:
-                _convert(base)
+                _check(base)
             return
         elif isinstance(node, ast.AnnAssign):
-            if node.target.id in aliases.keys():
-                raise ValueError(
-                        'Module to module assign is not allowed')
-            _convert(node.value)
+            _check(node.target)
+            _check(node.value)
             return
         elif isinstance(node, ast.Assign):
             for target in node.targets:
-                if target.id in aliases.keys():
-                    raise ValueError(
-                            'Module to module assign is not allowed')
-            _convert(node.value)
+                _check(target)
+            _check(node.value)
             return
         elif isinstance(node, ast.Name):
+            if node.id in aliases.keys():
+                raise ValueError('Assigning modules are not allowed')
             return
         elif isinstance(node, ast.Import):
             for alias in node.names:
@@ -97,9 +110,36 @@ def check(node_or_string, allowed_modules={}, allowed_functions=[],
                     aliases[alias.asname] = alias.name
                 else:
                     aliases[alias.name] = alias.name
-            return
+                if check_package(alias.name):
+                    return
+            raise ValueError(f'{alias.name} is not allowed.')
+        elif isinstance(node, ast.ImportFrom):
+            if not (node.module in allowed_modules):
+                raise ValueError(f'{node.module} is not allowed.')
+            else:
+                for alias in node.names:
+                    if alias.name in allowed_modules[node.module]:
+                        if alias.asname is not None:
+                            aliases[alias.asname] = alias.name
+                        else:
+                            aliases[alias.name] = alias.name
+                    else:
+                        raise ValueError(f'{alias.name} from {node.module} is not allowed.')
+            if check_package(node.module):
+                return
+            raise ValueError(f'{node.module} is not allowed.')
         elif isinstance(node, ast.Attribute):
-            if node.value.id in aliases.keys():
+            if hasattr(node.value, 'value'):
+                _check(node.value)
+                if isinstance(node.value, ast.Constant):
+                    return
+                elif node.value.attr in allowed_modules.keys():
+                    if node.attr in allowed_modules[node.value.attr]:
+                        return
+            elif hasattr(node, 'id'):
+                if node.id in allowed_functions:
+                    return
+            elif node.value.id in aliases.keys():
                 funcs = allowed_modules[aliases[node.value.id]]
                 if funcs == '':
                     return
@@ -108,27 +148,23 @@ def check(node_or_string, allowed_modules={}, allowed_functions=[],
             else:
                 if node.attr in allowed_functions:
                     return
+                elif node.attr in allowed_modules[node.value.id]:
+                    return
             raise ValueError(f'{node.attr} is not allowed.')
         elif isinstance(node, ast.Call):
             for arg in node.args:
-                _convert(arg)
-            if hasattr(node.func, 'id'):
-                if node.func.id in allowed_functions:
-                    return
-                raise ValueError(f'{node.func.id} is not allowed.')
-            elif hasattr(node.func, 'attr'):
-                if node.func.value.id in aliases.keys():
-                    funcs = allowed_modules[aliases[node.func.value.id]]
-                    if funcs == '':
-                        return
-                    if node.func.attr in funcs:
-                        return
-                else:
-                    if node.func.attr in allowed_functions:
-                        return
-                raise ValueError(f'{node.func.attr} is not allowed.')
+                _check(arg)
+            if isinstance(node.func, ast.Attribute):
+                _check(node.func)
+            else:
+                if not (node.func.id in allowed_functions):
+                    raise ValueError(f'{node.func.id} is not allowed.')
+            return
+        elif isinstance(node, ast.FormattedValue):
+            _check(node.value)
+            return
         raise ValueError(f'malformed node or string: {node}')
-    return [_convert(node) for node in node_or_string]
+    return [_check(node) for node in node_or_string]
 
 def read_config(config_file, allowed_modules, allowed_functions,
         verbose=False):
@@ -141,5 +177,3 @@ def read_config(config_file, allowed_modules, allowed_functions,
         code = compile(code, "config", "exec")
         exec(code, config.__dict__)
     return config
-
-

@@ -7,13 +7,7 @@ import site
 
 def check(node_or_string, allowed_modules={}, allowed_functions=[],
         verbose=True):
-    def exception_handler(
-            exception_type, exception, traceback, debug_hook=sys.excepthook):
-        if verbose:
-            debug_hook(exception_type, exception, traceback)
-        else:
-            print(f'{exception_type.__name__}: {exception}')
-    sys.excepthook = exception_handler
+    sys.tracebacklimit=0
     aliases = {}
     if isinstance(node_or_string, str):
         node_or_string = ast.parse(node_or_string, mode='exec')
@@ -166,7 +160,9 @@ def check(node_or_string, allowed_modules={}, allowed_functions=[],
         raise ValueError(f'malformed node or string: {node}')
     return [_check(node) for node in node_or_string]
 
-def read_config(config_file, allowed_modules, allowed_functions,
+def read_config(config_file,
+        allowed_modules={},
+        allowed_functions=[],
         verbose=False):
     config = types.ModuleType('config', 'Config')
     with open(config_file) as f:
@@ -176,4 +172,5 @@ def read_config(config_file, allowed_modules, allowed_functions,
                 verbose=verbose)
         code = compile(code, "config", "exec")
         exec(code, config.__dict__)
+    sys.tracebacklimit = 1000
     return config

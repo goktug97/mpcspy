@@ -1,4 +1,4 @@
-My Personal Configuration System MPCS
+My Personal Configuration System for Python MPCSPY
 ===================================
 
 I like to use Python as a configuration file. I have added some security
@@ -13,14 +13,14 @@ files.
 ### PyPI
 
 ``` bash
-pip3 install python-mpcs
+pip3 install mpcspy
 ```
 
 ### Source
 
 ``` bash
-git clone https://github.com/goktug97/mpcs
-cd mpcs
+git clone https://github.com/goktug97/mpcspy
+cd mpcspy
 python3 setup.py install
 ```
 
@@ -44,8 +44,8 @@ class Robot(object):
 
 - Reading Config
 ``` python
-import mpcs
-config = mpcs.read_config(config_file = 'config',
+import mpcspy
+config = mpcspy.read_config(config_file = 'config',
         allowed_modules={'numpy': ['radians'],
             'dataclasses': ['dataclass']},
         allowed_functions=[],
@@ -68,8 +68,8 @@ dataset_path = path.join('./data/')
 
 - Reading Config
 ``` python
-import mpcs
-config = mpcs.read_config(config_file = 'config',
+import mpcspy
+config = mpcspy.read_config(config_file = 'config',
         allowed_modules={'os': ['path'],
             'path': ['join']},
         allowed_functions=[],

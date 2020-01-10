@@ -5,9 +5,7 @@ import importlib
 import site
 
 
-def check(node_or_string, allowed_modules={}, allowed_functions=[],
-        verbose=True):
-    sys.tracebacklimit=0
+def check(node_or_string, allowed_modules={}, allowed_functions=[]):
     aliases = {}
     if isinstance(node_or_string, str):
         node_or_string = ast.parse(node_or_string, mode='exec')
@@ -164,12 +162,13 @@ def read_config(config_file,
         allowed_modules={},
         allowed_functions=[],
         verbose=False):
+    if not verbose:
+        sys.tracebacklimit=0
     config = types.ModuleType('config', 'Config')
     with open(config_file) as f:
         code = f.read()
         check(code, allowed_modules=allowed_modules,
-                allowed_functions=allowed_functions,
-                verbose=verbose)
+                allowed_functions=allowed_functions)
         code = compile(code, "config", "exec")
         exec(code, config.__dict__)
     sys.tracebacklimit = 1000

@@ -8,7 +8,7 @@ with open(os.path.join(directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(name='mpcspy',
-      version='0.0.4',
+      version='0.0.5',
       description='My Personal Configuration System for Python',
       author='Göktuğ Karakaşlı',
       author_email='karakasligk@gmail.com',

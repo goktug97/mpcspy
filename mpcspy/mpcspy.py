@@ -3,6 +3,7 @@ import sys
 import types
 import importlib
 import site
+import os
 
 
 def check(node_or_string, allowed_modules={}, allowed_functions=[]):
@@ -14,7 +15,7 @@ def check(node_or_string, allowed_modules={}, allowed_functions=[]):
     def check_package(name):
         lib_path = importlib.find_loader(name).path
         local_site = site.getusersitepackages()
-        local_site = '/'.join(local_site.split('/')[:-1])
+        local_site = os.path.dirname(os.path.abspath(local_site))
         global_sites = site.getsitepackages()
         for global_site in global_sites:
             global_site = '/'.join(global_site.split('/')[:-1])
